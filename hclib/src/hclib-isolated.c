@@ -42,7 +42,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <stdlib.h>
 #include "hashmap.h"
 
-#define DISPLAY_COLLISIONS
+//#define DISPLAY_COLLISIONS
 #define INITIAL_HASHMAP_SIZE 1048576
 #define KNUTH_CONSTANT 2654435761
 #define CHECK_RC(ret) HASSERT((rc) != -1 && "pthread API call failed")

@@ -1274,10 +1274,20 @@ static void hclib_init() {
     }
 
     const char *hpt_file = getenv("HCLIB_HPT_FILE");
+    // vivekk: commenting the following debug message to
+    // avoid confusion in CSE502 class
+    /*
     if (hpt_file == NULL) {
         fprintf(stderr, "WARNING: Running without a provided HCLIB_HPT_FILE, "
                 "will make a best effort to generate a default HPT.\n");
     }
+    */
+    // vivekk: adding the default number of workers a 1 for CSE502
+    if(!getenv("HCLIB_WORKERS")) {
+        setenv("HCLIB_WORKERS", "1", 0);
+    }
+    
+  
 
     hclib_entrypoint();
 }

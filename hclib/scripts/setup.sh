@@ -2,7 +2,7 @@
 
 export LIBXML2_INCLUDE=/usr/include/libxml2
 export LIBXML2_LIBS=/usr/lib/x86_64-linux-gnu
-export BASE=/home/kumar/hclib
+export BASE=/absolute/path/to/cse532/hclib
 ################################################
 #
 # DO NOT MODIFY ANYTHING BELOW UNLESS YOU ARE

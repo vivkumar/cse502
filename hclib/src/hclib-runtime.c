@@ -1230,21 +1230,25 @@ void runtime_statistics(double duration) {
 
     double total_duration = user_specified_timer>0 ? user_specified_timer :
                             duration;
-    printf("============================ MMTk Statistics Totals ============================\n");
-    printf("time.mu\ttotalPushOutDeq\ttotalPushInDeq\ttotalStealsInDeq\ttWork\ttOverhead\ttSearch\n");
-    printf("%.3f\t%d\t%d\t%d\t%.4f\t%.4f\t%.5f\n",total_duration,asyncCommPush,
-           asyncPush,steals,tWork,tOvh,tSearch);
+    printf("============================ HCLIB Runtime Statistics ============================\n");
+    printf("totalAsyncTasks\ttotalAsyncStolen\n");
+    printf("%d\t%d\n",asyncPush, steals);
+    //printf("time.mu\ttotalPushOutDeq\ttotalPushInDeq\ttotalStealsInDeq\ttWork\ttOverhead\ttSearch\n");
+    //printf("%.3f\t%d\t%d\t%d\t%.4f\t%.4f\t%.5f\n",total_duration,asyncCommPush,
+    //       asyncPush,steals,tWork,tOvh,tSearch);
     printf("Total time: %.3f ms\n",total_duration);
-    printf("------------------------------ End MMTk Statistics -----------------------------\n");
+    printf("------------------------------ End HCLIB Statistics -----------------------------\n");
     printf("===== TEST PASSED in %.3f msec =====\n",duration);
 }
 
 static void show_stats_header() {
     printf("\n");
+/*
     printf("-----\n");
     printf("mkdir timedrun fake\n");
     printf("\n");
     printf("-----\n");
+*/
     benchmark_start_time_stats = mysecond();
 }
 

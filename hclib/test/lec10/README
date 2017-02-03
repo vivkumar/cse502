@@ -1,0 +1,4 @@
+To execute the program averaging_hpt, use the command line from 
+current working directory (lec10) as mentioned below:
+
+HCLIB_BIND_THREADS=1 HCLIB_HPT_FILE=./hpt-sample.xml ./averaging_hpt

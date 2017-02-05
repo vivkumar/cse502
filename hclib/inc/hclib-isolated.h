@@ -50,6 +50,7 @@ inline void enable_isolation_n(void ** array, int n) {
 inline void disable_isolation_n(void** array, int n) {
   remove_isolation(array, n);
 }
+void global_isolatation(generic_frame_ptr func, void *args);
 void isolated_execution(void** object, int total, generic_frame_ptr func, void *args);
 #ifdef __cplusplus
 }

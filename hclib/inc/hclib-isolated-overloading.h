@@ -37,7 +37,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *      Authors: Vivek Kumar (vivekk@rice.edu)
  *
- * Other than the first function "execute_isolation_lambda", rest all
+ * Other than the first two functions "execute_isolation_lambda" and 
+ * "isolated(std::function<void()> &&lambda)", rest all
  * inline functions are generated using the perl script: scripts/gen-generic-isolated.pl 
  * $./scripts/gen-generic-isolated.pl 10
  * 
@@ -48,6 +49,10 @@ namespace hclib {
 inline void execute_isolation_lambda(void * args) {
   std::function<void()> *lambda = (std::function<void()> *)args;
   (*lambda)();
+}
+
+inline void isolated(std::function<void()> &&lambda) {
+        global_isolatation(execute_isolation_lambda, (void*)&lambda);
 }
 
 inline void isolated(void* object0, std::function<void()> &&lambda) {

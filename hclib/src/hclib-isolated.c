@@ -48,6 +48,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define CHECK_RC(ret) HASSERT((rc) != -1 && "pthread API call failed")
 static Hashmap* isolated_map = NULL;
 
+/* Support for global isolation in HClib ------> */
+static pthread_mutex_t global_isolation_mutex = PTHREAD_MUTEX_INITIALIZER;
+#define GLOBAL_ISOLATION_LOCK {int rc = pthread_mutex_lock(&global_isolation_mutex); CHECK_RC(rc);}
+#define GLOBAL_ISOLATION_UNLOCK {int rc = pthread_mutex_unlock(&global_isolation_mutex); CHECK_RC(rc);}
+/* <------ Support for global isolation in HClib */
 
 // TODO: Find a better hash function
 // When using knuth constant in multiplication
@@ -163,6 +168,18 @@ void remove_isolation(void** array, int n) {
     free(mutex);
   }
   hashmapUnlock(isolated_map);
+}
+
+/*
+ * User calls this method to request a global isolation
+ * that is achieved using a global mutex lock. This is
+ * similar to OpenMP critical section
+ */
+void global_isolatation(generic_frame_ptr func, void *args) {
+    GLOBAL_ISOLATION_LOCK;
+    // execute the critical section
+    func(args);
+    GLOBAL_ISOLATION_UNLOCK;
 }
 
 /*

@@ -16,7 +16,6 @@
 
 #include <assert.h>
 #include <errno.h>
-#include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
@@ -29,7 +28,7 @@ struct Hashmap {
     size_t bucketCount;
     int (*hash)(void* key);
     bool (*equals)(void* keyA, void* keyB);
-    pthread_mutex_t lock; 
+    volatile int lock; 
     size_t size;
 };
 
@@ -62,7 +61,7 @@ Hashmap* hashmapCreate(size_t initialCapacity,
     map->hash = hash;
     map->equals = equals;
     
-    pthread_mutex_init(&map->lock, NULL);
+    map->lock = UNLOCK_VAL;
     
     return map;
 }
@@ -126,11 +125,11 @@ static void expandIfNecessary(Hashmap* map) {
 }
 
 void hashmapLock(Hashmap* map) {
-    pthread_mutex_lock(&map->lock);
+    CAS_LOCK(&map->lock);
 }
 
 void hashmapUnlock(Hashmap* map) {
-    pthread_mutex_unlock(&map->lock);
+    CAS_UNLOCK(&map->lock);
 }
 
 void hashmapFree(Hashmap* map) {
@@ -144,23 +143,7 @@ void hashmapFree(Hashmap* map) {
         }
     }
     free(map->buckets);
-    pthread_mutex_destroy(&map->lock);
     free(map);
-}
-
-#ifdef __clang__
-__attribute__((no_sanitize("integer")))
-#endif
-/* FIXME: relies on signed integer overflow, which is undefined behavior */
-int hashmapHash(void* key, size_t keySize) {
-    int h = keySize;
-    char* data = (char*) key;
-    size_t i;
-    for (i = 0; i < keySize; i++) {
-        h = h * 31 + *data;
-        data++;
-    }
-    return h;
 }
 
 static Entry* createEntry(void* key, int hash, void* value) {
@@ -168,7 +151,7 @@ static Entry* createEntry(void* key, int hash, void* value) {
     assert(entry!=NULL && "malloc failed in hashmap::createEntry");
     entry->key = key;
     entry->hash = hash;
-    entry->value = value;
+    entry->value = (volatile int*) malloc(sizeof(int));
     entry->next = NULL;
     return entry;
 }
@@ -208,12 +191,14 @@ void* hashmapPut(Hashmap* map, void* key, void* value) {
             return NULL;
         }
 
+#if 0 //vivekk: not required for the cases we are using
         // Replace existing entry.
         if (equalKeys(current->key, current->hash, key, hash, map->equals)) {
             void* oldValue = current->value;
             current->value = value;
             return oldValue;
         }
+#endif
 
         // Move to next entry.
         p = &current->next;
@@ -256,6 +241,36 @@ Entry* hashmapGetEntry(Hashmap* map, void* key) {
     return NULL;
 }
 
+void* hashmapRemove(Hashmap* map, void* key) {
+    int hash = hashKey(map, key);
+    size_t index = calculateIndex(map->bucketCount, hash);
+
+    // Pointer to the current entry.
+    Entry** p = &(map->buckets[index]);
+    Entry* current;
+    while ((current = *p) != NULL) {
+        if (equalKeys(current->key, current->hash, key, hash, map->equals)) {
+            volatile void* value = current->value;
+            free(value);
+            *p = current->next;
+            free(current);
+            map->size--;
+            /* return value; */
+            return NULL; //vivekk
+        }
+
+        p = &current->next;
+    }
+
+    return NULL;
+}
+
+/*
+ * vivekk: All these functions are currently unused in hclib. Hence, they
+ * are still containing the default downloaded code. If you have to use this function
+ * then change the entry->value as we updated it to a scalar from a pointer.
+ */
+#if 0
 bool hashmapContainsKey(Hashmap* map, void* key) {
     int hash = hashKey(map, key);
     size_t index = calculateIndex(map->bucketCount, hash);
@@ -269,6 +284,21 @@ bool hashmapContainsKey(Hashmap* map, void* key) {
     }
 
     return false;
+}
+
+#ifdef __clang__
+__attribute__((no_sanitize("integer")))
+#endif
+/* FIXME: relies on signed integer overflow, which is undefined behavior */
+int hashmapHash(void* key, size_t keySize) {
+    int h = keySize;
+    char* data = (char*) key;
+    size_t i;
+    for (i = 0; i < keySize; i++) {
+        h = h * 31 + *data;
+        data++;
+    }
+    return h;
 }
 
 void* hashmapMemoize(Hashmap* map, void* key, 
@@ -302,28 +332,6 @@ void* hashmapMemoize(Hashmap* map, void* key,
         // Move to next entry.
         p = &current->next;
     }
-}
-
-void* hashmapRemove(Hashmap* map, void* key) {
-    int hash = hashKey(map, key);
-    size_t index = calculateIndex(map->bucketCount, hash);
-
-    // Pointer to the current entry.
-    Entry** p = &(map->buckets[index]);
-    Entry* current;
-    while ((current = *p) != NULL) {
-        if (equalKeys(current->key, current->hash, key, hash, map->equals)) {
-            void* value = current->value;
-            *p = current->next;
-            free(current);
-            map->size--;
-            return value;
-        }
-
-        p = &current->next;
-    }
-
-    return NULL;
 }
 
 void hashmapForEach(Hashmap* map, 
@@ -372,3 +380,4 @@ bool hashmapIntEquals(void* keyA, void* keyB) {
     int b = *((int*) keyB);
     return a == b;
 }
+#endif //<------------ unused functions till here

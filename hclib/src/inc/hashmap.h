@@ -29,6 +29,22 @@
 extern "C" {
 #endif
 
+/*
+ * Vivek Kumar:
+ * Locking and unlocking is implemented using GCC builtin Atomic Operations
+ * in isolated construct. Default value of a lock/unlocked object is defined here
+ * as macros -------------------->
+ */
+//default value for unlocked variable
+#define UNLOCK_VAL 0
+//default value for locked variable
+#define LOCK_VAL 1
+// locking macro
+#define CAS_LOCK(p) {while(!__sync_bool_compare_and_swap(p, UNLOCK_VAL, LOCK_VAL));}
+// unlocking macro
+#define CAS_UNLOCK(p) {*p = UNLOCK_VAL;} 
+/* <---------------------*/
+
 /** A hash map. */
 typedef struct Hashmap Hashmap;
 /* A key/value entry in hasmap */
@@ -36,7 +52,7 @@ typedef struct Entry Entry;
 struct Entry {
     void* key;
     int hash;
-    void* value;
+    volatile int* value;
 /*
  * Added to support indexing. See hashmap_extension.h for further details.
  */
@@ -60,12 +76,6 @@ Hashmap* hashmapCreate(size_t initialCapacity,
 void hashmapFree(Hashmap* map);
 
 /**
- * Hashes the memory pointed to by key with the given size. Useful for
- * implementing hash functions.
- */
-int hashmapHash(void* key, size_t keySize);
-
-/**
  * Puts value for the given key in the map. Returns pre-existing value if
  * any.
  *
@@ -87,21 +97,6 @@ void* hashmapPut(Hashmap* map, void* key, void* value);
 Entry* hashmapGetEntry(Hashmap* map, void* key);
 
 /**
- * Returns true if the map contains an entry for the given key.
- */
-bool hashmapContainsKey(Hashmap* map, void* key);
-
-/**
- * Gets the value for a key. If a value is not found, this function gets a 
- * value and creates an entry using the given callback.
- *
- * If memory allocation fails, the callback is not called, this function
- * returns NULL, and errno is set to ENOMEM.
- */
-void* hashmapMemoize(Hashmap* map, void* key, 
-        void* (*initialValue)(void* key, void* context), void* context);
-
-/**
  * Removes an entry from the map. Returns the removed value or NULL if no
  * entry was present.
  */
@@ -111,14 +106,6 @@ void* hashmapRemove(Hashmap* map, void* key);
  * Gets the number of entries in this map.
  */
 size_t hashmapSize(Hashmap* map);
-
-/**
- * Invokes the given callback on each entry in the map. Stops iterating if
- * the callback returns false.
- */
-void hashmapForEach(Hashmap* map, 
-        bool (*callback)(void* key, void* value, void* context),
-        void* context);
 
 /**
  * Concurrency support.
@@ -133,6 +120,42 @@ void hashmapLock(Hashmap* map);
  * Unlocks the hash map so other threads can access it.
  */
 void hashmapUnlock(Hashmap* map);
+
+/*
+ * vivekk: All these functions are currently unused in hclib. Hence, they
+ * are still containing the default downloaded code. If you have to use this function
+ * then change the entry->value as we updated it to a scalar from a pointer.
+ */
+#if 0
+
+/**
+ * Returns true if the map contains an entry for the given key.
+ */
+bool hashmapContainsKey(Hashmap* map, void* key);
+
+/**
+ * Hashes the memory pointed to by key with the given size. Useful for
+ * implementing hash functions.
+ */
+int hashmapHash(void* key, size_t keySize);
+
+/**
+ * Gets the value for a key. If a value is not found, this function gets a 
+ * value and creates an entry using the given callback.
+ *
+ * If memory allocation fails, the callback is not called, this function
+ * returns NULL, and errno is set to ENOMEM.
+ */
+void* hashmapMemoize(Hashmap* map, void* key, 
+        void* (*initialValue)(void* key, void* context), void* context);
+
+/**
+ * Invokes the given callback on each entry in the map. Stops iterating if
+ * the callback returns false.
+ */
+void hashmapForEach(Hashmap* map, 
+        bool (*callback)(void* key, void* value, void* context),
+        void* context);
 
 /**
  * Key utilities.
@@ -161,6 +184,8 @@ size_t hashmapCurrentCapacity(Hashmap* map);
  * Counts the number of entry collisions.
  */
 size_t hashmapCountCollisions(Hashmap* map);
+
+#endif //<------------ unused functions till here
 
 #ifdef __cplusplus
 }

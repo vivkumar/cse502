@@ -47,13 +47,13 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define TOTAL_TRANSACTIONS 1000000
 class Account {
   private:
-    uint64_t bal;
+    double bal;
  
   public:
-    Account(uint64_t b) { bal = b; }
+    Account(double b) { bal = b; }
     Account() { bal = 0; }
-    uint64_t balance() { return bal; }
-    bool withdraw(uint64_t amount) {
+    double balance() { return bal; }
+    bool withdraw(double amount) {
       if (amount > 0 && amount < bal) {
         bal -= amount;
         return true;
@@ -61,7 +61,7 @@ class Account {
       return false;
     }
 
-    bool deposit(uint64_t amount) {
+    bool deposit(double amount) {
       if (amount > 0) {
         bal += amount;
         return true;
@@ -75,12 +75,12 @@ int main(int argc, char ** argv) {
   int numAccounts = TOTAL_ACCOUNTS;
   int numTransactions = TOTAL_TRANSACTIONS;
 
-  uint64_t preSumOfBalances = 0;
+  double preSumOfBalances = 0;
   srand(time(NULL));
   Account* bankAccounts = new Account[numAccounts]; 
   void* isolation_objects[numAccounts];
   for (int i = 0; i < numAccounts; i++) {
-    int random = rand();
+    double random = rand();
     preSumOfBalances += random;
     bankAccounts[i].deposit(random);
     isolation_objects[i] = &(bankAccounts[i]);
@@ -92,7 +92,7 @@ int main(int argc, char ** argv) {
   hclib::loop_domain_t loop = {0, numTransactions, 1, 1};
   hclib::finish([&]() {
     hclib::forasync1D(&loop, [&](int i) {
-      const uint64_t amount = 200 * (i+1);
+      double amount = 200.00 * (i+1);
       const int src = rand() % numAccounts;
       int dest = src; 
       while(dest == src) dest =  rand() % numAccounts;
@@ -111,7 +111,7 @@ int main(int argc, char ** argv) {
   //de-register the set of objects on which isolation was requested
   hclib::disable_isolation_n(isolation_objects, numAccounts);
 
-  uint64_t postSumOfBalances = 0;
+  double postSumOfBalances = 0;
   for (int i = 0; i < numAccounts; i++) {
     postSumOfBalances += bankAccounts[i].balance();
   }

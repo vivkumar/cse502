@@ -5,19 +5,19 @@ EXE=fib_sequential fib_pthread fib_async_finish arraysum_async_finish arraysum_s
 all: $(EXE)
 
 fib_sequential: fib_sequential.cpp
-	g++ -o $@ $^
+	$(CXX) -o $@ $^
 
 fib_pthread: fib_pthread.cpp
-	g++ -o $@ $^ -lpthread
+	$(CXX) -o $@ $^ -lpthread
 
 fib_async_finish: fib_async_finish.cpp
-	g++ $(PROJECT_CXXFLAGS) -o $@ $^ -L . $(PROJECT_LDLIBS) $(PROJECT_LDFLAGS)
+	$(CXX) $(PROJECT_CXXFLAGS) $(PROJECT_LDFLAGS) -o $@ $^ $(PROJECT_LDLIBS)
 
 arraysum_sequential: arraysum_sequential.cpp
-	g++ -o $@ $^
+	$(CXX) -o $@ $^
 
 arraysum_async_finish: arraysum_async_finish.cpp
-	g++ $(PROJECT_CXXFLAGS) -o $@ $^ -L . $(PROJECT_LDLIBS) $(PROJECT_LDFLAGS)
+	$(CXX) $(PROJECT_CXXFLAGS) $(PROJECT_LDFLAGS) -o $@ $^ $(PROJECT_LDLIBS)
 
 clean:
 	rm -rf *.o $(EXE)

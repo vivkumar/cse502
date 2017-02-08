@@ -25,12 +25,13 @@ uint64_t fib(uint64_t n) {
   }
 }
 
-int main(int argc, char **argv) {
+int main (int argc, char ** argv) {
   hclib::launch([&]() {
     if (argc < 2) { return 1; }
     uint64_t n = strtoul(argv[1], NULL, 0);
     uint64_t result = fib(n);
     printf("Fibonacci of %" PRIu64 " is %" PRIu64 ".\n", n, result);
   });
-  return 0; 
+  return 0;
 }
+

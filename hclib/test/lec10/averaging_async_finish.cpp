@@ -3,6 +3,7 @@
 #include<stdio.h>
 #include<string.h>
 #include<sys/time.h>
+#include<cmath>
 
 /*
  * Ported from HJlib

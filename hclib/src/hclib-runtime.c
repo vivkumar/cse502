@@ -38,6 +38,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <pthread.h>
 #include <sys/time.h>
+#include <stddef.h>
 
 #include <hclib.h>
 #include <hclib-internal.h>
@@ -207,7 +208,6 @@ void hclib_global_init() {
 
     // isolation related datastructures
     init_isolation_datastructures();
-
 }
 
 void hclib_display_runtime() {
@@ -357,6 +357,7 @@ static inline void check_out_finish(finish_t *finish) {
         // hc_atomic_dec returns true when finish->counter goes to zero
         if (hc_atomic_dec(&(finish->counter))) {
 #if HCLIB_LITECTX_STRATEGY
+            HASSERT(!_hclib_promise_is_satisfied(finish->finish_deps[0]->owner));
             hclib_promise_put(finish->finish_deps[0]->owner, finish);
 #endif /* HCLIB_LITECTX_STRATEGY */
         }
@@ -364,7 +365,7 @@ static inline void check_out_finish(finish_t *finish) {
 }
 
 static inline void execute_task(hclib_task_t *task) {
-    finish_t *current_finish = get_current_finish(task);
+    finish_t *current_finish = task->current_finish;
     /*
      * Update the current finish of this worker to be inherited from the
      * currently executing task so that any asyncs spawned from the currently
@@ -441,9 +442,7 @@ static inline int is_eligible_to_schedule(hclib_task_t *async_task) {
             async_task, async_task->future_list);
 #endif
     if (async_task->future_list != NULL) {
-        hclib_triggered_task_t *triggered_task = (hclib_triggered_task_t *)
-                rt_async_task_to_triggered_task(async_task);
-        return register_on_all_promise_dependencies(triggered_task);
+        return register_on_all_promise_dependencies(async_task);
     } else {
         return 1;
     }
@@ -462,7 +461,7 @@ void try_schedule_async(hclib_task_t *async_task, int comm_task, int gpu_task,
 }
 
 void spawn_handler(hclib_task_t *task, place_t *pl,
-                   hclib_future_t **future_list, int escaping, int comm, int gpu) {
+        int escaping, int comm, int gpu) {
 
     HASSERT(task);
 #ifndef HC_CUDA
@@ -476,28 +475,20 @@ void spawn_handler(hclib_task_t *task, place_t *pl,
      * HabaneroUPC++ for implementation.
      *
      * TODO not sure exactly what this does, just copy-pasted. Ask Kumar
+     * FIXME - shouldn't this have an #ifdef guard?
      */
-    if (future_list) {
-        check_if_hcupc_distributed_futures(future_list);
+    if (task->future_list) {
+        check_if_hcupc_distributed_futures(task->future_list);
     }
 
     hclib_worker_state *ws = CURRENT_WS_INTERNAL;
     if (!escaping) {
         check_in_finish(ws->current_finish);
-        set_current_finish(task, ws->current_finish);
+        task->current_finish = ws->current_finish;
+        HASSERT(task->current_finish != NULL);
     } else {
         // If escaping task, don't register with current finish
-        set_current_finish(task, NULL);
-    }
-
-    if (pl) {
-        task->place = pl;
-    }
-
-    if (future_list) {
-        set_future_list(task, future_list);
-        hclib_dependent_task_t *t = (hclib_dependent_task_t *) task;
-        hclib_triggered_task_init(&(t->deps), future_list);
+        HASSERT(task->current_finish == NULL);
     }
 
 #ifdef VERBOSE
@@ -516,7 +507,7 @@ void spawn_at_hpt(place_t *pl, hclib_task_t *task) {
     // get current worker
     hclib_worker_state *ws = CURRENT_WS_INTERNAL;
     check_in_finish(ws->current_finish);
-    set_current_finish(task, ws->current_finish);
+    task->current_finish = ws->current_finish;
     task->place = pl;
     try_schedule_async(task, 0, 0, ws);
 #ifdef HC_COMM_WORKER_STATS
@@ -526,21 +517,24 @@ void spawn_at_hpt(place_t *pl, hclib_task_t *task) {
 }
 
 void spawn(hclib_task_t *task) {
-    spawn_handler(task, NULL, NULL, 0, 0, 0);
+    spawn_handler(task, NULL, 0, 0, 0);
 }
 
 void spawn_escaping(hclib_task_t *task, hclib_future_t **future_list) {
-    spawn_handler(task, NULL, future_list, 1, 0, 0);
+    spawn_handler(task, NULL, 1, 0, 0);
 }
 
 void spawn_escaping_at(place_t *pl, hclib_task_t *task,
                        hclib_future_t **future_list) {
-    spawn_handler(task, pl, future_list, 1, 0, 0);
+    spawn_handler(task, pl, 1, 0, 0);
 }
 
 void spawn_await_at(hclib_task_t *task, hclib_future_t **future_list,
                     place_t *pl) {
-    spawn_handler(task, pl, future_list, 0, 0, 0);
+    // FIXME - the future_list member may not have been properly
+    // initialized on this call path from C++ code (fix later)
+    task->future_list = future_list;
+    spawn_handler(task, pl, 0, 0, 0);
 }
 
 void spawn_await(hclib_task_t *task, hclib_future_t **future_list) {
@@ -548,11 +542,11 @@ void spawn_await(hclib_task_t *task, hclib_future_t **future_list) {
 }
 
 void spawn_comm_task(hclib_task_t *task) {
-    spawn_handler(task, NULL, NULL, 0, 1, 0);
+    spawn_handler(task, NULL, 0, 1, 0);
 }
 
 void spawn_gpu_task(hclib_task_t *task) {
-    spawn_handler(task, NULL, NULL, 0, 0, 1);
+    spawn_handler(task, NULL, 0, 0, 1);
 }
 
 #ifdef HC_CUDA
@@ -717,7 +711,7 @@ void *gpu_worker_routine(void *finish_ptr) {
                 exit(1);
             }
 
-            check_out_finish(get_current_finish((hclib_task_t *)task));
+            check_out_finish(task->t.current_finish);
 
             if (op) {
 #ifdef VERBOSE
@@ -733,7 +727,7 @@ void *gpu_worker_routine(void *finish_ptr) {
                 hclib_promise_put(task->promise_to_put, task->arg_to_put);
             }
 
-            // HC_FREE(task);
+            // free(task);
         }
 
         /*
@@ -920,18 +914,16 @@ static void *worker_routine(void *args) {
 }
 #endif /* HCLIB_LITECTX_STRATEGY */
 
-void teardown() {
-
-}
-
 #if HCLIB_LITECTX_STRATEGY
 static void _finish_ctx_resume(void *arg) {
     LiteCtx *currentCtx = get_curr_lite_ctx();
     LiteCtx *finishCtx = arg;
     ctx_swap(currentCtx, finishCtx, __func__);
 
+#ifdef VERBOSE
     fprintf(stderr, "Should not have reached here, currentCtx=%p "
             "finishCtx=%p\n", currentCtx, finishCtx);
+#endif
     HASSERT(0);
 }
 
@@ -940,21 +932,19 @@ void _help_wait(LiteCtx *ctx) {
     hclib_future_t **continuation_deps = ctx->arg;
     LiteCtx *wait_ctx = ctx->prev;
 
-    hclib_dependent_task_t *task = calloc(1, sizeof(*task));
-    HASSERT(task);
-    task->async_task._fp = _finish_ctx_resume; // reuse _finish_ctx_resume
-    task->async_task.args = wait_ctx;
-
-    spawn_escaping((hclib_task_t *)task, continuation_deps);
+    // reusing _finish_ctx_resume
+    hclib_async(_finish_ctx_resume, wait_ctx, continuation_deps,
+            NO_PHASER, ANY_PLACE, ESCAPING_ASYNC);
 
     core_work_loop();
     HASSERT(0);
 }
 
 void *hclib_future_wait(hclib_future_t *future) {
-    if (future->owner->datum != UNINITIALIZED_PROMISE_DATA_PTR) {
-        return (void *)future->owner->datum;
+    if (_hclib_promise_is_satisfied(future->owner)) {
+        return future->owner->datum;
     }
+
     hclib_future_t *continuation_deps[] = { future, NULL };
     LiteCtx *currentCtx = get_curr_lite_ctx();
     HASSERT(currentCtx);
@@ -963,8 +953,9 @@ void *hclib_future_wait(hclib_future_t *future) {
     ctx_swap(currentCtx, newCtx, __func__);
     LiteCtx_destroy(currentCtx->prev);
 
-    HASSERT(future->owner->datum != UNINITIALIZED_PROMISE_DATA_PTR);
-    return (void *)future->owner->datum;
+    HASSERT(_hclib_promise_is_satisfied(future->owner) &&
+            "promise must be satisfied before returning from wait");
+    return future->owner->datum;
 }
 
 static void _help_finish_ctx(LiteCtx *ctx) {
@@ -979,23 +970,20 @@ static void _help_finish_ctx(LiteCtx *ctx) {
     finish_t *finish = ctx->arg;
     LiteCtx *hclib_finish_ctx = ctx->prev;
 
-    hclib_dependent_task_t *task = calloc(1, sizeof(*task));
-    HASSERT(task);
-    task->async_task._fp = _finish_ctx_resume;
-    task->async_task.args = hclib_finish_ctx;
-
     /*
      * Create an async to handle the continuation after the finish, whose state
      * is captured in hclib_finish_ctx and whose execution is pending on
      * finish->finish_deps.
      */
-    spawn_escaping((hclib_task_t *)task, finish->finish_deps);
+    hclib_async(_finish_ctx_resume, hclib_finish_ctx, finish->finish_deps,
+            NO_PHASER, ANY_PLACE, ESCAPING_ASYNC);
 
     /*
      * The main thread is now exiting the finish (albeit in a separate context),
      * so check it out.
      */
     check_out_finish(finish);
+
     // keep work-stealing until this context gets swapped out and destroyed
     core_work_loop(); // this function never returns
     HASSERT(0); // we should never return here
@@ -1170,16 +1158,24 @@ void hclib_end_finish() {
     free(current_finish);
 }
 
+// Based on help_finish
 void hclib_end_finish_nonblocking_helper(hclib_promise_t *event) {
     finish_t *current_finish = CURRENT_WS_INTERNAL->current_finish;
 
     HASSERT(current_finish->counter > 0);
 
-    // Based on help_finish
-    hclib_future_t **finish_deps = malloc(2 * sizeof(*finish_deps));
-    HASSERT(finish_deps);
-    finish_deps[0] = &event->future;
-    finish_deps[1] = NULL;
+    // NOTE: this is a nasty hack to avoid a memory leak here.
+    // Previously we were allocating a two-element array of
+    // futures here, but there was no good way to free it...
+    // Since the promise datum is null until the promise is satisfied,
+    // we can use that as the null-terminator for our future list.
+    hclib_future_t **finish_deps = (hclib_future_t**)&event->future.owner;
+    HASSERT_STATIC(sizeof(event->future) == sizeof(event->datum) &&
+            offsetof(hclib_promise_t, future) == 0 &&
+            offsetof(hclib_promise_t, datum) == sizeof(hclib_future_t*),
+            "ad-hoc null terminator is correctly aligned in promise struct");
+    HASSERT(event->datum == NULL && UNINITIALIZED_PROMISE_DATA_PTR == NULL &&
+            "ad-hoc null terminator must have value NULL");
     current_finish->finish_deps = finish_deps;
 
     // Check out this "task" from the current finish
@@ -1230,6 +1226,7 @@ void runtime_statistics(double duration) {
 
     double total_duration = user_specified_timer>0 ? user_specified_timer :
                             duration;
+
     printf("============================ HCLIB Runtime Statistics ============================\n");
     printf("totalAsyncTasks\ttotalAsyncStolen\n");
     printf("%d\t%d\n",asyncPush, steals);
@@ -1243,12 +1240,10 @@ void runtime_statistics(double duration) {
 
 static void show_stats_header() {
     printf("\n");
-/*
     printf("-----\n");
     printf("mkdir timedrun fake\n");
     printf("\n");
     printf("-----\n");
-*/
     benchmark_start_time_stats = mysecond();
 }
 
@@ -1287,12 +1282,6 @@ static void hclib_init() {
     }
     */
     // vivekk: adding the default number of workers a 1 for CSE502
-    if(!getenv("HCLIB_WORKERS")) {
-        setenv("HCLIB_WORKERS", "1", 0);
-    }
-    
-  
-
     hclib_entrypoint();
 }
 

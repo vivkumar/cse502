@@ -5,7 +5,7 @@ EXE=test
 all: $(EXE)
 
 test: test.cpp
-	g++ $(PROJECT_CXXFLAGS) -o $@ $^ -L . $(PROJECT_LDLIBS) $(PROJECT_LDFLAGS)
+	$(CXX) $(PROJECT_CXXFLAGS) $(PROJECT_LDFLAGS) -o $@ $^ $(PROJECT_LDLIBS)
 
 clean:
 	rm -rf *.o $(EXE)

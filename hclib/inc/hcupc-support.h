@@ -103,6 +103,17 @@ inline void execute_hcupc_lambda(T* lambda) {
 			 * If a lambda is heap allocated then the pointer will not be valid at
 			 * remote place. Due to this we have to first copy the content of this
 			 * lambda into a stack allocated lambda.
+			 *
+			 * XXX - This description doesn't make any sense to me.
+			 * There's no way in C++ to differentiate a pointer to
+			 * an object with dynamic vs automatic storage duration,
+			 * so I don't see how this could be true. To further
+			 * complicate this, we're currently using heap-allocated
+			 * stacks for our fibers, so everything is in the heap
+			 * (i.e., even address-range-checking wouldn't work for
+			 * differentiating between stack and heap). This will
+			 * need to be refactored later, but I need to find out
+			 * what exactly it's supposed to be doing first.
 			 */
 
 			/*
@@ -121,15 +132,19 @@ inline void execute_hcupc_lambda(T* lambda) {
 			memcpy(commWorkerAsyncAny_infoStruct->ptr_to_outgoingAsyncAny, &tmp, sizeof(remoteAsyncAny_task));
 		}
 	}
-	HC_FREE((void*)lambda);
+	// FIXME - this whole call chain is kind of a mess
+	// leaving C malloc/free and memcpy calls for now (come back to fix it later)
+	free((void*)lambda);
 }
 
 template <typename T>
 inline hclib_task_t* _allocate_async_hcupc(T lambda, bool await) {
+	// FIXME - this whole call chain is kind of a mess
+	// leaving C malloc/free and memcpy calls for now (come back to fix it later)
 	const size_t hclib_task_size = await ? sizeof(hclib_dependent_task_t) : sizeof(hclib_task_t);
-	hclib_task_t* task = (hclib_task_t*) HC_MALLOC(hclib_task_size);
+	hclib_task_t* task = (hclib_task_t*) malloc(hclib_task_size);
 	const size_t lambda_size = sizeof(T);
-	T* lambda_onHeap = (T*) HC_MALLOC(lambda_size);
+	T* lambda_onHeap = (T*) malloc(lambda_size);
 	memcpy(lambda_onHeap, &lambda, lambda_size);
 	hclib_task_t t = hclib_task_t(execute_hcupc_lambda<T>, lambda_onHeap);
 	memcpy(task, &t, sizeof(hclib_task_t));

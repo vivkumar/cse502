@@ -9,7 +9,6 @@ int main(int argc, char **argv) {
       return 101;
     });
     printf("Worker id %d is working here\n",hclib::current_worker());
-    f->wait();
     int value = f->get();
     printf("Result obtained = %d\n",value);
   });

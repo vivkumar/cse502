@@ -42,9 +42,6 @@ int main(int argc, char **argv) {
     return sum;
   });
 
-  sum1->wait();
-  sum2->wait();
-  
   double sum = sum1->get() + sum2->get();
 
   long end = get_usecs();

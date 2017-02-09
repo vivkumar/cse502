@@ -22,7 +22,6 @@ uint64_t fib(uint64_t n) {
 
   uint64_t y = fib(n - 2);
   // wait for dependences, before updating the result
-  f1->wait();
   return y + f1->get();
 }
 

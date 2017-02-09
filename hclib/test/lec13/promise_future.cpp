@@ -10,7 +10,6 @@ int main(int argc, char **argv) {
       promise_obj->put(101);
     });
     printf("Worker id %d is working here\n",hclib::current_worker());
-    promise_obj->get_future()->wait();
     int value = promise_obj->get_future()->get();
     printf("Result obtained = %d\n",value);
     delete(promise_obj);

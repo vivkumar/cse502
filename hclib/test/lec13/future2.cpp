@@ -9,34 +9,34 @@ int main(int argc, char **argv) {
       return;
     });
     hclib::future_t<void> *b = hclib::async_future([=]() {
-      a->wait();
+      a->get();
       printf("B\n");
       return;
     });
     hclib::future_t<void> *c = hclib::async_future([=]() {
-      a->wait();
+      a->get();
       printf("C\n");
       return;
     });
     hclib::future_t<void> *d = hclib::async_future([=]() {
       sleep(1);
-      b->wait();
-      c->wait();
+      b->get();
+      c->get();
       printf("D\n");
       return;
     });
     hclib::future_t<void> *e = hclib::async_future([=]() {
-      c->wait();
+      c->get();
       printf("E\n");
       return;
     });
     hclib::future_t<void> *f = hclib::async_future([=]() {
-      d->wait();
-      e->wait();
+      d->get();
+      e->get();
       printf("F\n");
       return;
     });
-    f->wait();
+    f->get();
     printf("Terminating\n");
   });
   return 0;

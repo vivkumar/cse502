@@ -18,15 +18,16 @@ struct future_t: public hclib_future_t {
 
     union _ValUnion { T val; void *vp; };
 
-    T &&get() {
-        _ValUnion tmp;
-        tmp.vp = hclib_future_get(this);
-        return std::move(tmp.val);
-    }
-
     T &&wait() {
         _ValUnion tmp;
         tmp.vp = hclib_future_wait(this);
+        return std::move(tmp.val);
+    }
+
+    T &&get() {
+        wait();
+        _ValUnion tmp;
+        tmp.vp = hclib_future_get(this);
         return std::move(tmp.val);
     }
 };
@@ -34,32 +35,34 @@ struct future_t: public hclib_future_t {
 // Specialized for pointers
 template<typename T>
 struct future_t<T*>: public hclib_future_t {
-    T *get() {
-        return static_cast<T*>(hclib_future_get(this));
-    }
-
     T *wait() {
         return static_cast<T*>(hclib_future_wait(this));
+    }
+
+    T *get() {
+        wait();
+        return static_cast<T*>(hclib_future_get(this));
     }
 };
 
 // Specialized for references
 template<typename T>
 struct future_t<T&>: public hclib_future_t {
-    T &get() {
-        return *static_cast<T*>(hclib_future_get(this));
-    }
-
     T &wait() {
         return *static_cast<T*>(hclib_future_wait(this));
+    }
+
+    T &get() {
+        wait();
+        return *static_cast<T*>(hclib_future_get(this));
     }
 };
 
 // Specialized for void
 template<>
 struct future_t<void>: public hclib_future_t {
-    void get() { }
     void wait() { hclib_future_wait(this); }
+    void get() {  wait(); }
 };
 
 HASSERT_STATIC(std::is_pod<future_t<void*>>::value,

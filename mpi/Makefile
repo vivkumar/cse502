@@ -1,6 +1,9 @@
-EXE=deadlock_incorrect_pairs deadlock_incorrect_tag hello_world pt2pt_blocking pt2pt_nonblocking
+EXE=message_order deadlock_incorrect_pairs deadlock_incorrect_tag hello_world pt2pt_blocking pt2pt_nonblocking
 
 all: $(EXE)
+
+message_order: message_order.c
+	mpicc -o $@ $^
 
 deadlock_incorrect_pairs: deadlock_incorrect_pairs.c
 	mpicc -o $@ $^

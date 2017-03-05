@@ -45,13 +45,13 @@ int main(int argc, char **argv) {
   my_sum = 0;
   for(i=start_index; i<end_index; i++) my_sum += array[i];
 
-  int bytes = sizeof(int);
+  int tag = 123; // any value
   MPI_Status stats;
   // each non-root process will now send the partial sum
   // to the root process
   if(rank > 0) {
     int dest = 0;
-    MPI_Send(&my_sum, 1, MPI_INT, dest, rank, MPI_COMM_WORLD); 
+    MPI_Send(&my_sum, 1, MPI_INT, dest, tag, MPI_COMM_WORLD); 
   }
   else {
     // first root will add its own partial sum
@@ -59,7 +59,7 @@ int main(int argc, char **argv) {
     for(i=1; i<np; i++) {
       int src = i;
       int recv_sum;
-      MPI_Recv(&recv_sum, 1, MPI_INT, src, src, MPI_COMM_WORLD, &stats);
+      MPI_Recv(&recv_sum, 1, MPI_INT, src, tag, MPI_COMM_WORLD, &stats);
       total_sum += recv_sum; 
     }
   }

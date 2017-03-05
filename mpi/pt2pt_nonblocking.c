@@ -55,14 +55,14 @@ int main(int argc, char **argv) {
   // their result in a non-blocking API
   int* partial_sum = (int*) malloc(sizeof(int) * np);
 
-  int bytes = sizeof(int);
+  int tag = 123; // any value
   // each non-root process will now send the partial sum
   // to the root process
   if(rank > 0) {
     int dest = 0;
     MPI_Status stats;
     // Fire a non-blocking send
-    MPI_Isend(&my_sum, 1, MPI_INT, dest, rank, MPI_COMM_WORLD, &(req_array[rank-1])); 
+    MPI_Isend(&my_sum, 1, MPI_INT, dest, tag, MPI_COMM_WORLD, &(req_array[rank-1])); 
     // Here you can do some useful computation in parallel to the non-blocking send
     // Now wait for the send to complete
     MPI_Wait(&(req_array[rank-1]), &stats);
@@ -73,7 +73,7 @@ int main(int argc, char **argv) {
     for(i=1; i<np; i++) {
       int src = i;
       // Fire a non-blocking receive
-      MPI_Irecv(&partial_sum[src], 1, MPI_INT, src, src, MPI_COMM_WORLD, &(req_array[src-1]));
+      MPI_Irecv(&partial_sum[src], 1, MPI_INT, src, tag, MPI_COMM_WORLD, &(req_array[src-1]));
     }
     // Here you can do some useful computation in parallel to the non-blocking receive
     // Now wait for ALL the non-blocking receive to complete

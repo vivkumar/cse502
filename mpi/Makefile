@@ -1,6 +1,12 @@
-EXE=message_order deadlock_incorrect_pairs deadlock_incorrect_tag hello_world pt2pt_blocking pt2pt_nonblocking
+EXE=pt2pt_hybrid pt2pt_reduce message_order deadlock_incorrect_pairs deadlock_incorrect_tag hello_world pt2pt_blocking pt2pt_nonblocking
 
 all: $(EXE)
+
+pt2pt_hybrid: pt2pt_hybrid.c
+	mpicc -o $@ $^ -fopenmp
+
+pt2pt_reduce: pt2pt_reduce.c
+	mpicc -o $@ $^
 
 message_order: message_order.c
 	mpicc -o $@ $^

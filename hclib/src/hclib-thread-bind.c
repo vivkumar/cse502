@@ -39,9 +39,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <stdio.h>
 #define _GNU_SOURCE
 #define __USE_GNU
-#include <xlocale.h>
+//#include <xlocale.h>
 #include <unistd.h>
-#include <sched.h>
+//#include <sched.h>
 #include <errno.h>
 #include <stdlib.h>
 /** Platform specific thread binding implementations -- > ONLY FOR LINUX **/

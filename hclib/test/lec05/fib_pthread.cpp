@@ -2,6 +2,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
+#include <sys/time.h>
+
+long get_usecs (void)
+{
+     struct timeval t;
+        gettimeofday(&t,NULL);
+           return t.tv_sec*1000000+t.tv_usec;
+}
 
 uint64_t fib(uint64_t n) {
   if (n < 2) { 
@@ -29,6 +37,7 @@ int main(int argc, char *argv[]) {
   pthread_t thread;
   thread_args args;
   int status;
+  double dur;
   uint64_t result;
 
   if (argc < 2) { return 1; }
@@ -37,6 +46,7 @@ int main(int argc, char *argv[]) {
 	result = fib(n);
   } else {
     args.input = n-1;
+    long start = get_usecs();
     status = pthread_create(&thread, 
                             NULL, 
                             thread_func, 
@@ -46,9 +56,11 @@ int main(int argc, char *argv[]) {
     // Wait for the thread to terminate.
     status = pthread_join(thread, NULL);
     result += args.output;
+    long end = get_usecs();
+    dur = ((double)(end-start))/1000000;
   }
-  printf("Fibonacci of %" PRIu64 " is %" PRIu64 ".\n",   
-         n, result);
+  printf("Fibonacci of %" PRIu64 " is %" PRIu64 "Time = %.2f.\n",   
+         n, result,dur);
   return 0;
 }
 

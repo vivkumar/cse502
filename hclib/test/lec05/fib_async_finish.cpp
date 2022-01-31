@@ -19,7 +19,7 @@ uint64_t fib_seq(int n) {
 }
 
 uint64_t fib(uint64_t n) {
-  if (n < 15) { 
+  if (n < 12) { 
     return fib_seq(n);
   } else {
     uint64_t x, y;

@@ -36,9 +36,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *      Acknowledgments: https://wiki.rice.edu/confluence/display/HABANERO/People
  */
 
-#include <stdio.h>
 #define _GNU_SOURCE
 #define __USE_GNU
+#include <stdio.h>
 //#include <xlocale.h>
 #include <unistd.h>
 //#include <sched.h>
